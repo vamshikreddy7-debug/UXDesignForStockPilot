@@ -1,0 +1,10 @@
+{
+  "description": "Manage inventory effortlessly with a cloud-based platform designed for small retailers and distributors, featuring sales tracking, alerts, and reporting.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
