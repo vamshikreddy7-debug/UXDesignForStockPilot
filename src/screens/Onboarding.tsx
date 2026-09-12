@@ -1,355 +1,370 @@
 import { useState } from "react";
+import { authService } from "../services/authService";
 
-const plans = [
-  {
-    id: "starter",
-    name: "Starter",
-    price: "₹499",
-    period: "/mo",
-    items: "Up to 500 items",
-    features: ["1 user", "Basic reports", "Email alerts", "Mobile app"],
-  },
-  {
-    id: "pro",
-    name: "Pro",
-    price: "₹1,199",
-    period: "/mo",
-    items: "Up to 5,000 items",
-    features: ["5 users", "Advanced analytics", "SMS + email alerts", "Barcode scanning", "Export to Excel"],
-    popular: true,
-  },
-  {
-    id: "business",
-    name: "Business",
-    price: "₹2,999",
-    period: "/mo",
-    items: "Unlimited items",
-    features: ["Unlimited users", "Custom reports", "API access", "Priority support", "Multi-branch"],
-  },
-];
+interface OnboardingProps {
+  onComplete: (userData: any, token: string) => void;
+}
 
-export default function Onboarding({ onComplete }: { onComplete: () => void }) {
-  const [step, setStep] = useState(1);
-  const [form, setForm] = useState({
-    name: "",
+export default function Onboarding({ onComplete }: OnboardingProps) {
+  const [step, setStep] = useState<"choice" | "login" | "register">("choice");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Login state
+  const [loginData, setLoginData] = useState({ email: "", password: "" });
+
+  // Register state
+  const [registerData, setRegisterData] = useState({
+    username: "",
     email: "",
-    phone: "",
-    shop: "",
-    category: "",
     password: "",
+    confirmPassword: "",
+    firstName: "",
+    lastName: "",
+    businessName: "",
+    phoneNumber: "",
   });
-  const [plan, setPlan] = useState("pro");
-  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  function validateStep1() {
-    const e: Record<string, string> = {};
-    if (!form.name) e.name = "Full name is required";
-    if (!form.email && !form.phone) e.email = "Email or phone required";
-    if (!form.shop) e.shop = "Shop name is required";
-    if (!form.password || form.password.length < 8) e.password = "Password must be 8+ characters";
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  }
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
 
-  function handleNext() {
-    if (step === 1 && !validateStep1()) return;
-    setStep((s) => s + 1);
-  }
+    try {
+      const response = await authService.login(loginData.email, loginData.password);
+      if (response.success) {
+        onComplete(response.user, response.token);
+      } else {
+        setError(response.message || "Login failed");
+      }
+    } catch (err: any) {
+      setError(err.message || "Login failed");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const stepLabels = ["Account", "Shop", "Plan", "Done"];
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    if (registerData.password !== registerData.confirmPassword) {
+      setError("Passwords do not match");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const response = await authService.register(
+        registerData.username,
+        registerData.email,
+        registerData.password,
+        registerData.firstName,
+        registerData.lastName,
+        registerData.businessName,
+        registerData.phoneNumber
+      );
+      if (response.success) {
+        onComplete(response.user, response.token);
+      } else {
+        setError(response.message || "Registration failed");
+      }
+    } catch (err: any) {
+      setError(err.message || "Registration failed");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex" style={{ background: "var(--background)" }}>
-      {/* Left Panel */}
+      {/* Left side - Branding */}
       <div
-        className="hidden lg:flex flex-col justify-between w-80 p-10 shrink-0"
-        style={{ background: "var(--primary)" }}
+        className="hidden lg:flex lg:w-1/2 flex-col justify-center items-center p-12"
+        style={{ background: "linear-gradient(135deg, var(--accent) 0%, #1e40af 100%)" }}
       >
-        <div>
-          <div className="flex items-center gap-2 mb-12">
-            <div
-              className="w-8 h-8 rounded flex items-center justify-center text-sm font-bold"
-              style={{ background: "var(--accent)", color: "var(--accent-foreground)" }}
-            >
-              SP
+        <div className="text-center">
+          <div className="text-6xl mb-6">📦</div>
+          <h1 className="text-4xl font-bold text-white mb-4" style={{ fontFamily: "Outfit" }}>
+            StockPilot
+          </h1>
+          <p className="text-xl text-white/80 mb-8">Inventory & Sales Management</p>
+          <div className="space-y-4 text-white/70">
+            <div className="flex items-center gap-3">
+              <span>✓</span>
+              <span>Real-time inventory tracking</span>
             </div>
-            <span className="text-lg font-bold tracking-tight text-white" style={{ fontFamily: "Outfit" }}>
-              StockPilot
-            </span>
+            <div className="flex items-center gap-3">
+              <span>✓</span>
+              <span>Point of sale system</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span>✓</span>
+              <span>Sales analytics & reports</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span>✓</span>
+              <span>Low-stock alerts</span>
+            </div>
           </div>
-          <h2 className="text-2xl font-bold text-white mb-3" style={{ fontFamily: "Outfit" }}>
-            Manage your inventory with confidence.
-          </h2>
-          <p className="text-sm leading-relaxed" style={{ color: "#94a3b8" }}>
-            Trusted by 2,400+ shop owners across India. Real-time stock tracking, smart alerts, and seamless sales — all in one place.
-          </p>
-          <div className="mt-10 space-y-4">
-            {["Live stock updates", "Barcode scanning", "Low-stock alerts", "Sales & receipts", "GST-ready reports"].map((f) => (
-              <div key={f} className="flex items-center gap-3">
-                <div className="w-4 h-4 rounded-full flex items-center justify-center" style={{ background: "#f59e0b" }}>
-                  <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
-                    <path d="M1 4L3 6L7 2" stroke="#0f172a" strokeWidth="1.5" strokeLinecap="round" />
-                  </svg>
-                </div>
-                <span className="text-sm" style={{ color: "#cbd5e1" }}>{f}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="text-xs" style={{ color: "#475569" }}>
-          © 2026 StockPilot Technologies Pvt. Ltd.
         </div>
       </div>
 
-      {/* Right Panel */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6 py-12">
-        {/* Steps */}
-        <div className="w-full max-w-md mb-8">
-          <div className="flex items-center gap-0">
-            {stepLabels.map((label, i) => {
-              const idx = i + 1;
-              const done = idx < step;
-              const active = idx === step;
-              return (
-                <div key={label} className="flex items-center flex-1">
-                  <div className="flex flex-col items-center gap-1">
-                    <div
-                      className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all"
-                      style={{
-                        background: done ? "#10b981" : active ? "var(--accent)" : "var(--border)",
-                        color: done || active ? "#0f172a" : "var(--muted-foreground)",
-                      }}
-                    >
-                      {done ? "✓" : idx}
-                    </div>
-                    <span className="text-xs" style={{ color: active ? "var(--foreground)" : "var(--muted-foreground)" }}>
-                      {label}
-                    </span>
-                  </div>
-                  {i < stepLabels.length - 1 && (
-                    <div
-                      className="flex-1 h-px mx-2 mb-4"
-                      style={{ background: done ? "#10b981" : "var(--border)" }}
-                    />
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Step 1: Account */}
-        {step === 1 && (
-          <div className="w-full max-w-md">
-            <h1 className="text-2xl font-bold mb-1" style={{ fontFamily: "Outfit" }}>Create your account</h1>
-            <p className="text-sm mb-6" style={{ color: "var(--muted-foreground)" }}>Get started in under 2 minutes.</p>
-            <div className="space-y-4">
-              <Field label="Full name" error={errors.name}>
-                <input
-                  className="w-full px-3 py-2.5 text-sm rounded border outline-none focus:ring-2"
-                  style={{ border: errors.name ? "1px solid #ef4444" : "1px solid var(--border)", background: "var(--card)" }}
-                  placeholder="Rajesh Sharma"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                />
-              </Field>
-              <Field label="Email address" error={errors.email}>
-                <input
-                  className="w-full px-3 py-2.5 text-sm rounded border outline-none"
-                  style={{ border: "1px solid var(--border)", background: "var(--card)" }}
-                  placeholder="rajesh@example.com"
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                />
-              </Field>
-              <Field label="Mobile number">
-                <input
-                  className="w-full px-3 py-2.5 text-sm rounded border outline-none"
-                  style={{ border: "1px solid var(--border)", background: "var(--card)" }}
-                  placeholder="+91 98765 43210"
-                  type="tel"
-                  value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                />
-              </Field>
-              <Field label="Shop name" error={errors.shop}>
-                <input
-                  className="w-full px-3 py-2.5 text-sm rounded border outline-none"
-                  style={{ border: errors.shop ? "1px solid #ef4444" : "1px solid var(--border)", background: "var(--card)" }}
-                  placeholder="Sharma Auto Parts"
-                  value={form.shop}
-                  onChange={(e) => setForm({ ...form, shop: e.target.value })}
-                />
-              </Field>
-              <Field label="Business category">
-                <select
-                  className="w-full px-3 py-2.5 text-sm rounded border outline-none"
-                  style={{ border: "1px solid var(--border)", background: "var(--card)" }}
-                  value={form.category}
-                  onChange={(e) => setForm({ ...form, category: e.target.value })}
-                >
-                  <option value="">Select category</option>
-                  <option>Auto Parts</option>
-                  <option>Hardware & Tools</option>
-                  <option>Grocery / Kirana</option>
-                  <option>Furniture</option>
-                  <option>Electronics</option>
-                  <option>Other</option>
-                </select>
-              </Field>
-              <Field label="Password" error={errors.password}>
-                <input
-                  className="w-full px-3 py-2.5 text-sm rounded border outline-none"
-                  style={{ border: errors.password ? "1px solid #ef4444" : "1px solid var(--border)", background: "var(--card)" }}
-                  placeholder="Min. 8 characters"
-                  type="password"
-                  value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
-                />
-              </Field>
-            </div>
-            <button
-              onClick={handleNext}
-              className="w-full mt-6 py-2.5 rounded text-sm font-semibold transition-opacity hover:opacity-90"
-              style={{ background: "var(--primary)", color: "var(--primary-foreground)" }}
-            >
-              Continue →
-            </button>
-            <p className="text-xs text-center mt-4" style={{ color: "var(--muted-foreground)" }}>
-              Already have an account? <span className="underline cursor-pointer" style={{ color: "var(--accent)" }}>Sign in</span>
-            </p>
-          </div>
-        )}
-
-        {/* Step 2: Shop setup */}
-        {step === 2 && (
-          <div className="w-full max-w-md">
-            <h1 className="text-2xl font-bold mb-1" style={{ fontFamily: "Outfit" }}>Set up your shop</h1>
-            <p className="text-sm mb-6" style={{ color: "var(--muted-foreground)" }}>Tell us a bit more about your business.</p>
-            <div className="space-y-4">
-              <Field label="GST number (optional)">
-                <input className="w-full px-3 py-2.5 text-sm rounded border" style={{ border: "1px solid var(--border)", background: "var(--card)" }} placeholder="27AAECS1234A1Z5" />
-              </Field>
-              <Field label="Address">
-                <textarea className="w-full px-3 py-2.5 text-sm rounded border resize-none" style={{ border: "1px solid var(--border)", background: "var(--card)" }} rows={2} placeholder="Shop #12, Station Road, Pune - 411001" />
-              </Field>
-              <Field label="Currency">
-                <select className="w-full px-3 py-2.5 text-sm rounded border" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
-                  <option>INR — Indian Rupee (₹)</option>
-                  <option>USD — US Dollar ($)</option>
-                  <option>AED — UAE Dirham (د.إ)</option>
-                </select>
-              </Field>
-              <Field label="Low-stock threshold (default units)">
-                <input className="w-full px-3 py-2.5 text-sm rounded border font-mono" style={{ border: "1px solid var(--border)", background: "var(--card)" }} defaultValue="10" type="number" min="1" />
-              </Field>
-            </div>
-            <div className="flex gap-3 mt-6">
-              <button onClick={() => setStep(1)} className="flex-1 py-2.5 rounded text-sm font-medium border" style={{ border: "1px solid var(--border)", color: "var(--foreground)" }}>
-                ← Back
-              </button>
-              <button onClick={handleNext} className="flex-1 py-2.5 rounded text-sm font-semibold" style={{ background: "var(--primary)", color: "var(--primary-foreground)" }}>
-                Continue →
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 3: Plan */}
-        {step === 3 && (
-          <div className="w-full max-w-2xl">
-            <h1 className="text-2xl font-bold mb-1 text-center" style={{ fontFamily: "Outfit" }}>Choose your plan</h1>
-            <p className="text-sm text-center mb-6" style={{ color: "var(--muted-foreground)" }}>14-day free trial on all plans. No card required.</p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {plans.map((p) => (
+      {/* Right side - Auth Forms */}
+      <div className="w-full lg:w-1/2 flex flex-col justify-center p-8">
+        <div className="max-w-md w-full mx-auto">
+          {step === "choice" && (
+            <div className="text-center">
+              <h2 className="text-3xl font-bold mb-8" style={{ fontFamily: "Outfit" }}>
+                Welcome to StockPilot
+              </h2>
+              <p className="mb-8" style={{ color: "var(--muted-foreground)" }}>
+                Choose an option to get started
+              </p>
+              <div className="space-y-4">
                 <button
-                  key={p.id}
-                  onClick={() => setPlan(p.id)}
-                  className="text-left p-5 rounded-lg border-2 transition-all relative"
-                  style={{
-                    border: plan === p.id ? "2px solid var(--accent)" : "2px solid var(--border)",
-                    background: "var(--card)",
-                    boxShadow: plan === p.id ? "0 0 0 3px rgba(245,158,11,0.12)" : "none",
+                  onClick={() => {
+                    setStep("login");
+                    setError(null);
                   }}
+                  className="w-full py-3 rounded font-semibold transition-colors"
+                  style={{ background: "var(--primary)", color: "var(--primary-foreground)" }}
                 >
-                  {p.popular && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-xs font-semibold px-2.5 py-0.5 rounded-full" style={{ background: "var(--accent)", color: "var(--accent-foreground)" }}>
-                      Most popular
-                    </div>
-                  )}
-                  <div className="font-bold text-base mb-0.5" style={{ fontFamily: "Outfit" }}>{p.name}</div>
-                  <div className="text-xs mb-3" style={{ color: "var(--muted-foreground)" }}>{p.items}</div>
-                  <div className="flex items-baseline gap-0.5 mb-3">
-                    <span className="text-2xl font-bold font-mono" style={{ fontFamily: "Outfit" }}>{p.price}</span>
-                    <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>{p.period}</span>
-                  </div>
-                  <div className="space-y-1.5">
-                    {p.features.map((f) => (
-                      <div key={f} className="flex items-center gap-2 text-xs" style={{ color: "var(--muted-foreground)" }}>
-                        <div className="w-3 h-3 rounded-full flex items-center justify-center shrink-0" style={{ background: "var(--accent)", color: "var(--accent-foreground)" }}>
-                          <svg width="6" height="6" viewBox="0 0 6 6" fill="none"><path d="M1 3L2.5 4.5L5 2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" /></svg>
-                        </div>
-                        {f}
-                      </div>
-                    ))}
-                  </div>
+                  Sign In
                 </button>
-              ))}
+                <button
+                  onClick={() => {
+                    setStep("register");
+                    setError(null);
+                  }}
+                  className="w-full py-3 rounded font-semibold border"
+                  style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
+                >
+                  Create Account
+                </button>
+              </div>
             </div>
-            <div className="flex gap-3 mt-6">
-              <button onClick={() => setStep(2)} className="flex-1 py-2.5 rounded text-sm font-medium border" style={{ border: "1px solid var(--border)", color: "var(--foreground)" }}>
-                ← Back
-              </button>
-              <button onClick={handleNext} className="flex-1 py-2.5 rounded text-sm font-semibold" style={{ background: "var(--primary)", color: "var(--primary-foreground)" }}>
-                Start Free Trial →
-              </button>
-            </div>
-          </div>
-        )}
+          )}
 
-        {/* Step 4: Done */}
-        {step === 4 && (
-          <div className="w-full max-w-md text-center">
-            <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: "rgba(16,185,129,0.12)" }}>
-              <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-                <circle cx="16" cy="16" r="16" fill="#10b981" fillOpacity="0.2" />
-                <path d="M10 16L14 20L22 12" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </div>
-            <h1 className="text-2xl font-bold mb-2" style={{ fontFamily: "Outfit" }}>You're all set, Rajesh!</h1>
-            <p className="text-sm mb-6" style={{ color: "var(--muted-foreground)" }}>
-              Your StockPilot account is ready. Your 14-day Pro trial has started. Add your first items and start tracking.
-            </p>
-            <div className="p-4 rounded-lg mb-6 text-left space-y-2" style={{ background: "var(--secondary)" }}>
-              <div className="text-xs font-semibold mb-2" style={{ color: "var(--muted-foreground)" }}>QUICK CHECKLIST</div>
-              {["Add your first inventory items", "Set low-stock thresholds", "Invite team members", "Configure your receipt header"].map((t) => (
-                <div key={t} className="flex items-center gap-2 text-sm">
-                  <div className="w-4 h-4 rounded border" style={{ border: "1.5px solid var(--border)" }} />
-                  {t}
+          {step === "login" && (
+            <form onSubmit={handleLogin} className="space-y-6">
+              <div>
+                <h2 className="text-3xl font-bold mb-2" style={{ fontFamily: "Outfit" }}>
+                  Sign In
+                </h2>
+                <p style={{ color: "var(--muted-foreground)" }}>Enter your credentials</p>
+              </div>
+
+              {error && (
+                <div className="p-4 rounded" style={{ background: "rgba(220, 38, 38, 0.1)", color: "#dc2626" }}>
+                  {error}
                 </div>
-              ))}
-            </div>
-            <button
-              onClick={onComplete}
-              className="w-full py-3 rounded text-sm font-semibold"
-              style={{ background: "var(--primary)", color: "var(--primary-foreground)" }}
-            >
-              Go to Dashboard →
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+              )}
 
-function Field({ label, children, error }: { label: string; children: React.ReactNode; error?: string }) {
-  return (
-    <div>
-      <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--foreground)" }}>{label}</label>
-      {children}
-      {error && <p className="text-xs mt-1" style={{ color: "#ef4444" }}>{error}</p>}
+              <div>
+                <label className="block text-sm font-medium mb-2">Email</label>
+                <input
+                  type="email"
+                  required
+                  value={loginData.email}
+                  onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
+                  className="w-full px-4 py-2 rounded border"
+                  style={{ borderColor: "var(--border)", background: "var(--background)" }}
+                  placeholder="you@example.com"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Password</label>
+                <input
+                  type="password"
+                  required
+                  value={loginData.password}
+                  onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
+                  className="w-full px-4 py-2 rounded border"
+                  style={{ borderColor: "var(--border)", background: "var(--background)" }}
+                  placeholder="••••••••"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 rounded font-semibold transition-opacity"
+                style={{
+                  background: "var(--primary)",
+                  color: "var(--primary-foreground)",
+                  opacity: loading ? 0.7 : 1,
+                }}
+              >
+                {loading ? "Signing in..." : "Sign In"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setStep("choice");
+                  setLoginData({ email: "", password: "" });
+                  setError(null);
+                }}
+                className="w-full text-sm"
+                style={{ color: "var(--accent)" }}
+              >
+                Back
+              </button>
+            </form>
+          )}
+
+          {step === "register" && (
+            <form onSubmit={handleRegister} className="space-y-4">
+              <div>
+                <h2 className="text-3xl font-bold mb-2" style={{ fontFamily: "Outfit" }}>
+                  Create Account
+                </h2>
+                <p style={{ color: "var(--muted-foreground)" }}>Fill in your details</p>
+              </div>
+
+              {error && (
+                <div className="p-4 rounded" style={{ background: "rgba(220, 38, 38, 0.1)", color: "#dc2626" }}>
+                  {error}
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium mb-1">First Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={registerData.firstName}
+                    onChange={(e) => setRegisterData({ ...registerData, firstName: e.target.value })}
+                    className="w-full px-3 py-2 rounded border text-sm"
+                    style={{ borderColor: "var(--border)", background: "var(--background)" }}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium mb-1">Last Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={registerData.lastName}
+                    onChange={(e) => setRegisterData({ ...registerData, lastName: e.target.value })}
+                    className="w-full px-3 py-2 rounded border text-sm"
+                    style={{ borderColor: "var(--border)", background: "var(--background)" }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium mb-1">Username</label>
+                <input
+                  type="text"
+                  required
+                  value={registerData.username}
+                  onChange={(e) => setRegisterData({ ...registerData, username: e.target.value })}
+                  className="w-full px-3 py-2 rounded border text-sm"
+                  style={{ borderColor: "var(--border)", background: "var(--background)" }}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium mb-1">Business Name</label>
+                <input
+                  type="text"
+                  required
+                  value={registerData.businessName}
+                  onChange={(e) => setRegisterData({ ...registerData, businessName: e.target.value })}
+                  className="w-full px-3 py-2 rounded border text-sm"
+                  style={{ borderColor: "var(--border)", background: "var(--background)" }}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium mb-1">Email</label>
+                <input
+                  type="email"
+                  required
+                  value={registerData.email}
+                  onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
+                  className="w-full px-3 py-2 rounded border text-sm"
+                  style={{ borderColor: "var(--border)", background: "var(--background)" }}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium mb-1">Phone (Optional)</label>
+                <input
+                  type="tel"
+                  value={registerData.phoneNumber}
+                  onChange={(e) => setRegisterData({ ...registerData, phoneNumber: e.target.value })}
+                  className="w-full px-3 py-2 rounded border text-sm"
+                  style={{ borderColor: "var(--border)", background: "var(--background)" }}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium mb-1">Password</label>
+                <input
+                  type="password"
+                  required
+                  value={registerData.password}
+                  onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
+                  className="w-full px-3 py-2 rounded border text-sm"
+                  style={{ borderColor: "var(--border)", background: "var(--background)" }}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium mb-1">Confirm Password</label>
+                <input
+                  type="password"
+                  required
+                  value={registerData.confirmPassword}
+                  onChange={(e) => setRegisterData({ ...registerData, confirmPassword: e.target.value })}
+                  className="w-full px-3 py-2 rounded border text-sm"
+                  style={{ borderColor: "var(--border)", background: "var(--background)" }}
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 rounded font-semibold transition-opacity text-sm"
+                style={{
+                  background: "var(--primary)",
+                  color: "var(--primary-foreground)",
+                  opacity: loading ? 0.7 : 1,
+                }}
+              >
+                {loading ? "Creating account..." : "Create Account"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setStep("choice");
+                  setRegisterData({
+                    username: "",
+                    email: "",
+                    password: "",
+                    confirmPassword: "",
+                    firstName: "",
+                    lastName: "",
+                    businessName: "",
+                    phoneNumber: "",
+                  });
+                  setError(null);
+                }}
+                className="w-full text-sm"
+                style={{ color: "var(--accent)" }}
+              >
+                Back
+              </button>
+            </form>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
